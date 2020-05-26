@@ -1,0 +1,65 @@
+#include <Wire.h>
+#include <LiquidCrystal_PCF8574.h>
+
+LiquidCrystal_PCF8574 lcd(0x3F);
+int ThermistorPin = 0;
+int Vo;
+float R1 = 100*100;
+float logR2, R2, T, Tc, Tf;
+float c1 = 1.009249522e-03, c2 = 2.378405444e-04, c3 = 2.019202697e-07;
+
+int sensorPin = A0;
+int PWM = 3;
+int sensorVal;
+int PWMVal;
+
+void setup() {
+  pinMode(sensorPin, INPUT);
+  pinMode(PWM, OUTPUT);
+  Serial.begin(9600);
+
+}
+
+void loop() {
+   Vo = analogRead(ThermistorPin);
+  R2 = R1 * (1023.0 / (float)Vo - 1.0);
+  logR2 = log(R2);
+  T = (1.0 / (c1 + c2*logR2 + c3*logR2*logR2*logR2));
+  Tc = T - 273.15;
+  Tf = (Tc * 9.0)/ 5.0 + 32.0; 
+
+  Serial.print("Temperature: "); 
+  Serial.print(Tf);
+  Serial.print(" F; ");
+  Serial.print(Tc);
+  Serial.println(" C"); 
+
+    lcd.begin(16,2);
+
+lcd.setBacklight(255);
+lcd.setCursor(0,0);
+lcd.print("Temperature now"); 
+lcd.setCursor(5,1);
+lcd.print(Tc);
+lcd.print(" C");
+
+  delay(1000);
+
+  //read sensor value and set upper limit cap
+  sensorVal = analogRead(sensorPin);
+  if(Tc >35){
+    sensorVal = 35;
+  }
+
+  //map and assign pwm values to the fan output 0 to 255 corresponds to 0 to 100%
+  PWMVal = map(sensorVal, 450, 800, 26, 255);
+
+  //set 450 as out cutout or cut in limit where the fan switches from off to the lower PWM limit
+  if(Tc <35){
+    PWMVal = 0;
+  }
+
+  //write the PWM value to the pwm output pin
+  analogWrite(PWM, PWMVal);
+
+}
